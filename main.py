@@ -7,13 +7,15 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.append('../../utils')
 from IO import *
+from ML import *
+from plot import *
 
 seed = 42
 test_size=0.25
 n_trials=10
 output_path = '../../output/'
 
-def evaluate_binaryClassification(y_true, y_pred):
+def evaluate(y_true, y_pred):
     # AUC
     auc = metrics.roc_auc_score(y_true, y_pred)
     # # average_precision
@@ -42,7 +44,7 @@ def lgb_classifier(x_train, y_train):
         }
         clf = lgb.train(param, dtrain)
         pred_y = clf.predict(valid_x)
-        score = evaluate_binaryClassification(valid_y, pred_y)
+        score = evaluate(valid_y, pred_y)
         return score
         
     study = optuna.create_study(direction='maximize')
@@ -60,13 +62,25 @@ def lgb_plot(clf):
 
 def main():
     initialize(output_path)
+    # toyデータ作成
     import sklearn.datasets
-    data, target = sklearn.datasets.load_breast_cancer(return_X_y=True)
-    x_train, x_test, y_train, y_test = train_test_split(data, target, test_size=test_size, random_state=seed)
+    data = sklearn.datasets.load_iris()
+    import pandas as pd
+    df = pd.DataFrame(data=data['data'], columns=data['feature_names'])
+    df['y'] = data["target"]
+    df = df[df['y']!=2]
+    import random
+    df['segment'] = [random.randint(0, 1) for _ in range(len(df))]
+    x_train, x_test, y_train, y_test = train_test_split(
+        df.drop('y', axis=1), df['y'], test_size=test_size, random_state=seed
+    )
+    # toyデータ作成終了
+    plot_histogram([df[df['y']==0]['sepal length (cm)'].values, df[df['y']==1]['sepal length (cm)'].values],'title',label_list=['a','b'])
     clf = lgb_classifier(x_train, y_train)
     y_pred = clf.predict(x_test)
     lgb_plot(clf)
     print(f'{metrics.roc_auc_score(y_test, y_pred)}, {metrics.average_precision_score(y_test, y_pred)}')
+    plot_shap(clf, df.drop('y', axis=1))
 
 if __name__ == '__main__':
     main()

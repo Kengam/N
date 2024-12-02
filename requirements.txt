@@ -6,3 +6,4 @@ optuna
 pandas
 matplotlib
 graphviz
+shap
